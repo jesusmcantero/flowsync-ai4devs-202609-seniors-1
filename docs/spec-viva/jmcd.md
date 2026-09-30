@@ -24,7 +24,7 @@ El sistema SHALL permitir crear una cuenta mediante `POST /api/v1/auth/signup` c
 
 ### Requirement: Validación de los datos de registro
 
-El sistema SHALL rechazar el registro con estado 422 y un cuerpo `{ "errors": [...] }`, donde cada error indica `message`, `rule` y `field`, cuando los datos no cumplan las reglas, y SHALL NOT crear la cuenta en ese caso.
+El sistema SHALL rechazar el registro con estado 422 y un cuerpo `{ "errors": [...] }`, donde cada error indica al menos `message`, `rule` y `field` (y `meta` con los límites cuando la regla es de longitud), cuando los datos no cumplan las reglas, y SHALL NOT crear la cuenta en ese caso.
 
 #### Scenario: Email con formato inválido
 - **WHEN** se envía un `email` que no tiene formato de dirección de correo
@@ -67,8 +67,12 @@ El sistema SHALL permitir iniciar sesión mediante `POST /api/v1/auth/login` con
 - **THEN** la respuesta es 400 con `{ "errors": [{ "message": "Invalid user credentials" }] }`, idéntica en ambos casos, sin revelar si el email existe
 
 #### Scenario: Email con formato inválido en el login
-- **WHEN** se envía un `email` sin formato de dirección de correo, o falta `email` o `password`
-- **THEN** la respuesta es 422 con los errores de validación por campo, sin llegar a comprobar las credenciales
+- **WHEN** se envía un `email` sin formato de dirección de correo
+- **THEN** la respuesta es 422 con un error de regla `email` sobre el campo `email`, sin llegar a comprobar las credenciales
+
+#### Scenario: Campos vacíos o ausentes en el login
+- **WHEN** falta `email` o `password`, o alguno se envía como cadena vacía
+- **THEN** la respuesta es 422 con un error de regla `required` sobre cada campo afectado; la contraseña del login no tiene requisito de longitud
 
 ### Requirement: Tokens de acceso sin caducidad
 
@@ -92,7 +96,7 @@ El sistema SHALL devolver, en `GET /api/v1/account/profile`, los datos de la per
 
 ### Requirement: Iniciales del usuario
 
-El sistema SHALL calcular `initials` en mayúsculas a partir del nombre, o del email cuando no hay nombre.
+El sistema SHALL calcular `initials` en mayúsculas separando el nombre por cada espacio (o el email por la arroba cuando no hay nombre): si hay un segundo trozo no vacío, toma la primera letra de los dos primeros trozos; si no, los dos primeros caracteres del primer trozo.
 
 #### Scenario: Nombre con dos o más palabras
 - **WHEN** el nombre es "Ada Lovelace"
@@ -105,6 +109,10 @@ El sistema SHALL calcular `initials` en mayúsculas a partir del nombre, o del e
 #### Scenario: Sin nombre
 - **WHEN** la cuenta no tiene nombre y su email es "ada@example.com"
 - **THEN** `initials` es "AE" (primera letra de lo que hay antes y después de la arroba)
+
+#### Scenario: Nombre con espacios dobles o de una letra
+- **WHEN** el nombre es "Ada  Lovelace" (con dos espacios seguidos) o "A"
+- **THEN** `initials` es "AD" o "A" respectivamente, porque el segundo trozo queda vacío o no existe
 
 ### Requirement: Cierre de sesión por API
 
@@ -130,9 +138,13 @@ El sistema SHALL responder en JSON en todas las rutas de la API, también en los
 - **WHEN** se hace una petición a la API sin cabecera `Accept` y la respuesta es un error de autenticación o de validación
 - **THEN** el cuerpo es JSON con la lista `errors`, nunca una página HTML ni una redirección
 
+#### Scenario: Ruta inexistente
+- **WHEN** se pide una ruta de la API que no existe
+- **THEN** la respuesta es 404 con cuerpo JSON
+
 ### Requirement: Navegación según el estado de sesión
 
-La aplicación web SHALL ofrecer las pantallas de login (`/login`), registro (`/register`) y perfil (`/profile`), SHALL mostrar login y registro solo a quien no tiene sesión y el perfil solo a quien sí la tiene, y SHALL enviar cualquier otra dirección al perfil.
+La aplicación web SHALL ofrecer las pantallas de login (`/login`), registro (`/register`) y perfil (`/profile`), SHALL mostrar login y registro solo a quien no tiene sesión y el perfil solo a quien sí la tiene, y SHALL tratar cualquier otra dirección (incluida la raíz) como una petición del perfil, que a su vez lleva al login si no hay sesión.
 
 #### Scenario: Sin sesión intenta ver el perfil
 - **WHEN** una persona sin sesión abre `/profile` o cualquier dirección desconocida
@@ -168,7 +180,7 @@ La aplicación web SHALL mostrar un formulario "Crea tu cuenta" con nombre compl
 
 #### Scenario: Errores de validación en castellano
 - **WHEN** el servidor rechaza algún campo (email mal formado, contraseña fuera de longitud, campo vacío…)
-- **THEN** la persona ve bajo cada campo afectado un mensaje en castellano, como "Introduce una dirección de email válida.", "la contraseña debe tener al menos 8 caracteres." o "Falta rellenar el email."
+- **THEN** la persona ve bajo cada campo afectado un mensaje en castellano, como "Introduce una dirección de email válida.", "la contraseña debe tener al menos 8 caracteres.", "la contraseña no puede superar los 32 caracteres." o "Falta rellenar el email."; la pantalla no comprueba formato ni longitud antes de enviar
 
 ### Requirement: Pantalla de login
 
@@ -181,6 +193,10 @@ La aplicación web SHALL mostrar un formulario "Inicia sesión" con email y cont
 #### Scenario: Credenciales incorrectas desde la pantalla
 - **WHEN** la persona introduce un email o una contraseña que no son correctos
 - **THEN** ve un aviso en rojo sobre el formulario: "El email o la contraseña no son correctos."
+
+#### Scenario: Campos inválidos en el login
+- **WHEN** la persona envía el formulario con el email mal formado o algún campo vacío
+- **THEN** el navegador no lo bloquea: se envía al servidor y la persona ve bajo cada campo el mensaje correspondiente, como "Introduce una dirección de email válida." o "Falta rellenar la contraseña."
 
 ### Requirement: Pantalla de perfil
 
@@ -196,7 +212,7 @@ La aplicación web SHALL cerrar la sesión en el navegador al pulsar "Cerrar ses
 
 #### Scenario: Cierre normal
 - **WHEN** la persona pulsa "Cerrar sesión"
-- **THEN** acaba en la pantalla de login sin ningún aviso de error, y al recargar la página sigue sin sesión
+- **THEN** el botón pasa a "Cerrando sesión…" y queda deshabilitado, y acaba en la pantalla de login sin ningún aviso de error, y al recargar la página sigue sin sesión
 
 #### Scenario: Cierre con el servidor caído
 - **WHEN** la persona pulsa "Cerrar sesión" y el servidor no responde
@@ -211,12 +227,16 @@ La aplicación web SHALL recordar la sesión en el navegador entre recargas y vi
 - **THEN** ve un indicador de carga mientras se comprueba la sesión y después su perfil, sin tener que iniciar sesión otra vez
 
 #### Scenario: Sesión rechazada por el servidor
-- **WHEN** al arrancar, el servidor rechaza la sesión guardada (por ejemplo, porque se cerró desde otro sitio)
+- **WHEN** al arrancar, el servidor rechaza la sesión guardada por no reconocerla (por ejemplo, porque se cerró desde otro sitio)
 - **THEN** la persona ve la pantalla de login con el aviso "Tu sesión ha caducado. Vuelve a iniciar sesión." y el navegador olvida esa sesión
 
 #### Scenario: Servidor inalcanzable al arrancar
 - **WHEN** al arrancar no se puede contactar con el servidor
 - **THEN** la persona ve la pantalla de login con el aviso "No se pudo conectar con el servidor. Comprueba que el backend está arrancado.", y la sesión guardada se conserva para que, al recargar con el servidor ya disponible, vuelva a entrar sin iniciar sesión
+
+#### Scenario: Error del servidor al arrancar
+- **WHEN** al arrancar, el servidor responde con un error inesperado al comprobar la sesión
+- **THEN** la persona ve la pantalla de login con el aviso "Algo ha ido mal en el servidor. Inténtalo de nuevo en un momento." y la sesión guardada se conserva para el siguiente arranque
 
 #### Scenario: El aviso desaparece al volver a entrar
 - **WHEN** la persona, tras ver un aviso de sesión perdida, inicia sesión con éxito
