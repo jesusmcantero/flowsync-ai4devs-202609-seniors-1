@@ -24,7 +24,7 @@ El sistema SHALL permitir que una persona sin sesión cree una cuenta con nombre
 
 #### Scenario: Contraseñas que no coinciden
 - **WHEN** la contraseña y su repetición son distintas
-- **THEN** la web no envía nada al servidor y muestra únicamente "Las contraseñas no coinciden." bajo "Repite la contraseña", aunque otros campos también tengan errores; esos solo aparecerán en el siguiente envío, cuando las contraseñas coincidan. Por API directa, el mismo caso da 422 con regla `sameAs` sobre `passwordConfirmation`
+- **THEN** la web no envía nada al servidor y muestra únicamente "Las contraseñas no coinciden." bajo "Repite la contraseña", aunque otros campos también tengan errores; esos solo aparecerán en el siguiente envío, cuando las contraseñas coincidan. Por API directa, el mismo caso da 422 con regla `sameAs` sobre `passwordConfirmation` siempre que ambas tengan una longitud válida; si no, el error de ese campo es el de longitud
 
 #### Scenario: Datos que el servidor rechaza
 - **WHEN** las contraseñas coinciden pero el email no tiene formato válido o supera 254 caracteres, la contraseña tiene menos de 8 o más de 32 caracteres, o falta algún campo obligatorio (la pantalla no comprueba formato ni longitud antes de enviar)
@@ -52,7 +52,7 @@ El sistema SHALL permitir que una persona con cuenta entre con su email y su con
 
 #### Scenario: Campos inválidos o vacíos
 - **WHEN** la persona envía el email mal formado, o el email o la contraseña vacíos (la pantalla no lo impide)
-- **THEN** la API responde 422 con regla `email` o `required` sobre el campo afectado, sin comprobar las credenciales, y la web muestra bajo cada campo su mensaje, como "Introduce una dirección de email válida." o "Falta rellenar la contraseña."; en el login la contraseña no tiene requisito de longitud
+- **THEN** la API responde 422 con regla `email`, `maxLength` (email de más de 254 caracteres) o `required` sobre el campo afectado, sin comprobar las credenciales, y la web muestra bajo cada campo su mensaje, como "Introduce una dirección de email válida." o "Falta rellenar la contraseña."; en el login la contraseña no tiene requisito de longitud
 
 #### Scenario: Aviso previo de sesión perdida
 - **WHEN** la persona llega al login con un aviso de sesión perdida en pantalla y entra con éxito
@@ -79,8 +79,8 @@ El sistema SHALL mostrar a la persona con sesión sus datos de cuenta: iniciales
 - **THEN** las iniciales son "AD" y "A": los dos primeros caracteres de esa palabra, o el único que haya
 
 #### Scenario: Iniciales con espacios irregulares
-- **WHEN** el nombre, enviado por API directa, contiene dos espacios seguidos ("Ada  Lovelace") o solo espacios
-- **THEN** las iniciales son "AD" en el primer caso, porque la segunda palabra se considera vacía, y quedan vacías en el segundo
+- **WHEN** el nombre contiene dos espacios seguidos ("Ada  Lovelace", posible también desde la web, que solo recorta los extremos), o bien, por API directa, empieza por espacio o es solo espacios
+- **THEN** las iniciales son "AD" en el primer caso, porque la segunda palabra se considera vacía, y quedan vacías en los otros dos; solo el espacio cuenta como separador
 
 #### Scenario: Iniciales sin nombre
 - **WHEN** la cuenta no tiene nombre y su email es "ada@example.com"
@@ -92,7 +92,7 @@ El sistema SHALL cerrar la sesión en el navegador en cuanto la persona pulse "C
 
 #### Scenario: Cierre normal
 - **WHEN** la persona pulsa "Cerrar sesión" con el servidor disponible
-- **THEN** el botón pasa a "Cerrando sesión…"; el navegador olvida la sesión; la web envía `POST /api/v1/account/logout` con el token; la API responde 200 con `{ "message": "Logged out successfully" }`, sin el envoltorio `data` que usan las demás respuestas correctas; a partir de ahí ese token recibe 401; y la persona queda en el login sin ningún aviso, y sigue sin sesión al recargar
+- **THEN** el navegador olvida la sesión; la web envía `POST /api/v1/account/logout` con el token; la API responde 200 con `{ "message": "Logged out successfully" }`, sin el envoltorio `data` que usan las demás respuestas correctas; a partir de ahí ese token recibe 401; y la persona queda en el login sin ningún aviso, y sigue sin sesión al recargar
 
 #### Scenario: Otras sesiones siguen abiertas
 - **WHEN** la misma cuenta tiene sesión en dos navegadores y cierra sesión en uno
@@ -116,7 +116,7 @@ El sistema SHALL recordar la sesión en el navegador entre recargas y visitas y 
 
 #### Scenario: Sesión que el servidor no reconoce
 - **WHEN** al arrancar, la API responde 401 al token guardado, sea porque esa sesión se cerró desde otro sitio o porque el token no es válido
-- **THEN** el navegador olvida la sesión y la persona ve el login con el aviso "Tu sesión ha caducado. Vuelve a iniciar sesión."; es el mismo texto sea cual sea la causa, aunque los tokens nunca caducan por tiempo
+- **THEN** el navegador olvida la sesión y la persona ve el login con el aviso "Tu sesión ha caducado. Vuelve a iniciar sesión."; es el mismo texto sea cual sea la causa, aunque los tokens nunca caducan por tiempo. El aviso solo se muestra en el login: si la persona había abierto el registro, lo ve sin aviso
 
 #### Scenario: Servidor inalcanzable o con error al arrancar
 - **WHEN** al arrancar, la web no puede contactar con el servidor o este responde con un error que no es 401
