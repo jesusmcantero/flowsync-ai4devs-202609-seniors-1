@@ -16,20 +16,33 @@ distinto, y sin este archivo no se distinguen.
 - Incluye también los que **no funcionaron**. Suelen ser los más útiles de leer.
 - `Modelo` y `Herramienta` en todos. Si cambiaste de una a otra a mitad, se nota aquí.
 
-Borra el ejemplo de abajo cuando escribas el primero.
-
 ---
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Opus 5.5
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
+Crear una matriz de trazabilidad para el requisito «Lo que cada tarea muestra de su responsable», solo ese requisito no analices ningun otro requisito, El formato de la matriz es una linea por escenario con las siguientes columnas:
 
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+
+
+
+
+Escenario (una linea)
+
+
+
+Test que lo cubre
+
+
+
+Estado (Cubierto, no cubierto o no lo se)
+
+
+
+Explication del pq no puedo decidir si esta o no esta cubierto
+
+La matriz guardala en el fichero docs/verificacion/jmcd.md Anade este prompt al fichero prompts.md
 ```
-
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
