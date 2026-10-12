@@ -1,3 +1,4 @@
+import type { Assert } from '@japa/assert'
 import Task from '#models/task'
 import User from '#models/user'
 import { test } from '@japa/runner'
@@ -29,7 +30,7 @@ test.group('Tasks | responsable', (group) => {
    * cliente: dentro de la lista y suelta. La de creación se pide aparte porque
    * su responsable es quien la envía, no uno elegido.
    */
-  async function lecturas(client: any, token: string, task: Task) {
+  async function lecturas(client: any, assert: Assert, token: string, task: Task) {
     const lista = await client.get('/api/v1/tasks').header('Authorization', `Bearer ${token}`)
     lista.assertStatus(200)
 
@@ -39,10 +40,12 @@ test.group('Tasks | responsable', (group) => {
       .header('Authorization', `Bearer ${token}`)
     suelta.assertStatus(200)
 
-    return {
-      lista: lista.body().data.find((t: any) => t.id === task.id).assignee,
-      suelta: suelta.body().data.assignee,
-    }
+    const enLista = lista.body().data.find((t: any) => t.id === task.id)
+    assert.isObject(enLista, 'la tarea no aparece en la lista')
+    assert.isObject(enLista.assignee, 'la tarea de la lista no trae assignee')
+    assert.isObject(suelta.body().data.assignee, 'la tarea suelta no trae assignee')
+
+    return { lista: enLista.assignee, suelta: suelta.body().data.assignee }
   }
 
   test('el responsable llega con su nombre y sus iniciales', async ({ client, assert }) => {
@@ -58,7 +61,7 @@ test.group('Tasks | responsable', (group) => {
       assigneeId: ada.id,
     })
 
-    const { lista, suelta } = await lecturas(client, token, task)
+    const { lista, suelta } = await lecturas(client, assert, token, task)
 
     for (const assignee of [lista, suelta]) {
       assert.equal(assignee.fullName, 'Ada Lovelace')
@@ -79,7 +82,7 @@ test.group('Tasks | responsable', (group) => {
       assigneeId: ada.id,
     })
 
-    const { lista, suelta } = await lecturas(client, token, task)
+    const { lista, suelta } = await lecturas(client, assert, token, task)
 
     const creada = await client
       .post('/api/v1/tasks')
@@ -89,21 +92,23 @@ test.group('Tasks | responsable', (group) => {
 
     const lecturasPorOrigen = { lista, suelta, creada: (creada.body().data as any).assignee }
 
-    // Se recogen todas las fugas antes de afirmar nada: si falla, el mensaje
-    // dice en qué lecturas se cuela el dato, no solo en la primera.
-    const fugas = Object.entries(lecturasPorOrigen)
-      .filter(([, assignee]) => {
-        const serialized = JSON.stringify(assignee)
-        return (
-          'email' in assignee ||
-          'password' in assignee ||
-          serialized.includes('@example.com') ||
-          serialized.includes('secreto123')
-        )
-      })
-      .map(([origen]) => origen)
+    // Lista blanca y no negra: el requisito dice «ningún otro dato», así que
+    // cualquier campo de más es una fuga, se llame como se llame. El `id` se
+    // admite porque identifica al responsable sin revelar nada de su cuenta.
+    const permitidos = ['fullName', 'id', 'initials']
 
-    assert.deepEqual(fugas, [], `el assignee expone datos de cuenta en: ${fugas.join(', ')}`)
+    // Se recogen todas las fugas antes de afirmar nada: si falla, el mensaje
+    // dice en qué lecturas se cuela qué campo, no solo la primera.
+    const fugas = Object.entries(lecturasPorOrigen).flatMap(([origen, assignee]) => {
+      assert.isObject(assignee, `la lectura «${origen}» no trae assignee`)
+
+      const sobrantes = Object.keys(assignee).filter((campo) => !permitidos.includes(campo))
+      if (JSON.stringify(assignee).includes('@example.com')) sobrantes.push('(un email)')
+
+      return sobrantes.map((campo) => `${origen}.${campo}`)
+    })
+
+    assert.deepEqual(fugas, [], `el assignee expone datos de cuenta: ${fugas.join(', ')}`)
   })
 
   test('un responsable sin nombre llega con nombre nulo e iniciales', async ({
@@ -122,7 +127,7 @@ test.group('Tasks | responsable', (group) => {
       assigneeId: anonima.id,
     })
 
-    const { lista, suelta } = await lecturas(client, token, task)
+    const { lista, suelta } = await lecturas(client, assert, token, task)
 
     for (const assignee of [lista, suelta]) {
       assert.property(assignee, 'fullName')
