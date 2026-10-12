@@ -7,5 +7,15 @@ export default defineConfig({
       title: 'FlowSync API',
       version: 'v1',
     },
+    components: {
+      securitySchemes: {
+        // El nombre lo fija `@ApiBearerAuth()`, que siempre referencia `bearer`.
+        bearer: {
+          type: 'http',
+          scheme: 'bearer',
+          description: 'Access token opaco del guard `api`.',
+        },
+      },
+    },
   },
 })
