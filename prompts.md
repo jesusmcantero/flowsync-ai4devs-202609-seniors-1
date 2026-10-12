@@ -22,14 +22,42 @@ Borra el ejemplo de abajo cuando escribas el primero.
 
 ## Prompt 1
 
-**Modelo:** Opus 1M xHigh
+**Modelo:** Opus 5.5
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
+Para los últimos 15 commits del repositorio y el estado actual del árbol, utliza las Reglas de proceso del archivo claude.md para verificar cuales se cumplieron en cada uno de los commits. Necesito que para cada commit y cada regla me proporciones 
 
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+
+
+
+
+Qué pide la regla. Una frase, con tus palabras. Si necesitas tres, es que ahí hay dos reglas metidas en una.
+
+
+
+Que se miro para comprobarla, comando concreto o archivo
+
+
+
+Veredicto con valores se cumple, no se cumple o no se puede comprobar con lo que hay
+
+
+
+La evedencia  en una línea. Si el veredicto es no se cumple, el sitio donde se rompió. Si es no se puede comprobar, qué falta para poder comprobarla.
+
+
+
+Que harias con ella: dejar, borrarl o bajarla
+
+anade este prompt al archivo prompts. No crees ninguna pr
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+## Prompt 2
+
+**Modelo:** Opus 5.5
+**Herramienta:** Claude Code
+
+```
+Para la regla R3 asume que si el commit contiene Co-Authored-By: en la ultima linea de la descripcion esta hecho con la ayuda de un agente. Anade le prompt a prompts. No hagas ningun pr
+```
